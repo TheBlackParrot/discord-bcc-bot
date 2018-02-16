@@ -74,6 +74,40 @@ client.on("message", function(msg) {
 			break;
 
 		case "!":
+			var cmds = content.substr(1).split(" ");
+			
+			switch(cmds[0]) {
+				case "purge":
+
+					var num = parseInt(cmds[1]);
+					if (num === NaN || num <= 0) {
+						msg.reply("`purge` requires a valid positive number")
+								.then(deleteMsgAndReply);
+						break;
+					}
+					
+					// Make sure user got sufficient permission
+					if (!msg.member.permissions.has(Permissions.FLAGS.MANAGE_MESSAGES)) {
+						console.log("try of purging in " + msg.channel.name + " by " + msg.author.username);
+						break;
+					}
+
+					// Removing the command as well
+					++num;
+
+					// Fetch, delete and notify
+					msg.channel.fetchMessages({limit: num})
+							.then(function(messages) {
+						var channel = msg.channel;
+						msg.channel.bulkDelete(messages)
+								.then(function(messages) {
+							channel.reply("Purged " + messages.size + " messages")
+									.then(deleteReply);
+						});
+					});
+
+					break;
+			}
 			break;
 
 		default:
