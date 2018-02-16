@@ -12,6 +12,17 @@ client.on("message", function(msg) {
 		return;
 	}
 
+	function deleteMsg() {
+		msg.delete({timeout: 10000});
+	}
+	function deleteReply(reply) {
+		reply.delete({timeout: 10000});
+	}
+	function deleteMsgAndReply(reply) {
+		deleteMsg();
+		deleteReply(reply);
+	}
+
 	var content = msg.cleanContent;
 	var prefix = content.substr(0, 1);
 
@@ -25,10 +36,8 @@ client.on("message", function(msg) {
 			var role = content.substr(1);
 			
 			if(!(settings.allowed_roles.includes(role))) {
-				msg.reply("`" + role + "` is not a toggleable role.").then(function(reply) {
-					msg.delete({timeout: 10000});
-					reply.delete({timeout: 10000});
-				});
+				msg.reply("`" + role + "` is not a toggleable role.")
+						.then(deleteMsgAndReply);
 				break;
 			}
 
@@ -36,10 +45,8 @@ client.on("message", function(msg) {
 			var roles = msg.guild.roles;
 
 			member.roles.add(roles.find("name", role));
-			msg.reply("You now have the `" + role + "` role.").then(function(reply) {
-				msg.delete({timeout: 10000});
-				reply.delete({timeout: 10000});
-			});
+			msg.reply("You now have the `" + role + "` role.")
+					.then(deleteMsgAndReply);
 
 			break;
 
@@ -52,10 +59,8 @@ client.on("message", function(msg) {
 			var role = content.substr(1);
 			
 			if(!(settings.allowed_roles.includes(role))) {
-				msg.reply("`" + role + "` is not a toggleable role.").then(function(reply) {
-					msg.delete({timeout: 10000});
-					reply.delete({timeout: 10000});
-				});
+				msg.reply("`" + role + "` is not a toggleable role.")
+						.then(deleteMsgAndReply);
 				break;
 			}
 
@@ -63,10 +68,8 @@ client.on("message", function(msg) {
 			var roles = msg.guild.roles;
 
 			member.roles.remove(roles.find("name", role));
-			msg.reply("You no longer have the `" + role + "` role.").then(function(reply) {
-				msg.delete({timeout: 10000});
-				reply.delete({timeout: 10000});
-			});
+			msg.reply("You no longer have the `" + role + "` role.")
+					.then(deleteMsgAndReply);
 
 			break;
 
