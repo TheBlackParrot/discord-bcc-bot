@@ -1,0 +1,20 @@
+{
+	"token": "",
+
+	"allowed_roles": [
+		"Programmer",
+		"Modeler",
+		"Eventer",
+		"Builder",
+		"Audio",
+		"DLL/Game Injection",
+		"PC",
+		"Mac",
+		"Linux"
+	],
+
+	"allowed_channels": [
+		"bcc-bot-development",
+		"role-request"
+	]
+}
