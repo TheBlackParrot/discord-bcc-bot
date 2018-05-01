@@ -406,44 +406,6 @@ function parseArgList(args) {
 	return out.concat(opt).join(", ");
 }
 
-function getRelatedFunctions(func, className, amount) {
-	if(typeof className === "string") {
-		var funcList = functionData[className];
-	} else if(typeof className === "number") {
-		amount = className;
-		var funcList = functionData;
-	}
-
-	if(typeof funcList === "undefined") {
-		var functionDataProxy = new Proxy(functionData, caseInsensitiveHandler);
-		
-		if(typeof className === "string") {
-			var funcList = functionDataProxy[className];
-		} else if(typeof className === "number") {
-			amount = className;
-			var funcList = functionDataProxy;
-		}
-	}
-
-	if(!Object.keys(funcList).length) {
-		return [];
-	}
-
-	return strSim.findBestMatch(func, Object.keys(funcList)).ratings.sort(function(a, b) {
-		if(a.rating > b.rating) {
-			return -1
-		} else if(a.rating < b.rating) {
-			return 1;
-		} else {
-			return 0;
-		}
-	}).filter(function(row) {
-		return row.rating != 1 && row.rating >= 0.33;
-	}).map(function(row) {
-		return row.target;
-	});	
-}
-
 var caseInsensitiveHandler = {
 	has: function(obj, prop) {
 		if(prop in obj) {
@@ -546,6 +508,76 @@ var caseInsensitiveHandler = {
 	}
 }
 
+function getRelatedFunctions(func, className, amount) {
+	if(typeof className === "string") {
+		var funcList = functionData[className];
+	} else if(typeof className === "number") {
+		amount = className;
+		var funcList = functionData;
+	}
+
+	if(typeof funcList === "undefined") {
+		var functionDataProxy = new Proxy(functionData, caseInsensitiveHandler);
+		
+		if(typeof className === "string") {
+			var funcList = functionDataProxy[className];
+		} else if(typeof className === "number") {
+			amount = className;
+			var funcList = functionDataProxy;
+		}
+	}
+
+	if(!Object.keys(funcList).length) {
+		return [];
+	}
+
+	return strSim.findBestMatch(func, Object.keys(funcList)).ratings.sort(function(a, b) {
+		if(a.rating > b.rating) {
+			return -1
+		} else if(a.rating < b.rating) {
+			return 1;
+		} else {
+			return 0;
+		}
+	}).filter(function(row) {
+		return row.rating != 1 && row.rating >= 0.33;
+	}).map(function(row) {
+		return row.target;
+	});	
+}
+
+function findPossibleDuplicateFunctions(func, className) {
+	var functionDataProxy = new Proxy(functionData, caseInsensitiveHandler);
+	var keys = Object.keys(functionData);
+
+	var possibleDupes = [];
+
+	if(className && func in functionDataProxy) {
+		possibleDupes.push("NONE");
+	}
+
+	for(var i in keys) {
+		var key = keys[i];
+		var value = functionData[key];
+
+		if(!Array.isArray(value) && typeof value === "object") {
+			var classDataProxy = new Proxy(value, caseInsensitiveHandler);
+
+			if(func in classDataProxy) {
+				if(className) {
+					if(className.toLowerCase() == key.toLowerCase()) {
+						continue;
+					}
+				}
+
+				possibleDupes.push(key);
+			}			
+		}
+	}
+
+	return possibleDupes;
+}
+
 function handleGeneralCommand(msg) {
 	var parts = msg.cleanContent.split(" ");
 
@@ -557,9 +589,13 @@ function handleGeneralCommand(msg) {
 				return;
 			}
 
+			// TODO: clean this shit up
+
 			var func = parts[1].trim();
 			var func_parts = func.split("::");
 			var hasClass = false;
+
+			var dupes = findPossibleDuplicateFunctions(func);
 
 			var functionDataProxy = new Proxy(functionData, caseInsensitiveHandler);
 
@@ -567,9 +603,17 @@ function handleGeneralCommand(msg) {
 				if(!(func in functionDataProxy)) {
 					var possibles = getRelatedFunctions(func, 10);
 					if(possibles.length) {
-						msg.channel.send("No arguments have been defined for `" + func + "`\n\nDid you mean any of these?\n`" + possibles.join(", ") + "`");
+						if(dupes.length) {
+							msg.channel.send("No arguments have been defined for `" + func + "`\n\nDid you mean any of these?\n`" + possibles.join(", ") + "`\n\nThis function has a definition in class(es) `" + dupes.join("`, `") + "`");
+						} else {
+							msg.channel.send("No arguments have been defined for `" + func + "`\n\nDid you mean any of these?\n`" + possibles.join(", ") + "`");
+						}
 					} else {
-						msg.channel.send("No arguments have been defined for `" + func + "`");
+						if(dupes.length) {
+							msg.channel.send("No arguments have been defined for `" + func + "`\n\nThis function has a definition in class(es) `" + dupes.join("`, `") + "`");
+						} else {
+							msg.channel.send("No arguments have been defined for `" + func + "`");
+						}
 					}
 					return;
 				}
@@ -584,8 +628,14 @@ function handleGeneralCommand(msg) {
 				var func = func_parts[1];
 				hasClass = true;
 
+				var dupes = findPossibleDuplicateFunctions(func, className);
+
 				if(!(className in functionDataProxy)) {
-					msg.channel.send("No functions have been defined for class `" + className + "`");
+					if(dupes.length) {
+						msg.channel.send("No functions have been defined for class `" + className + "`\n\nThis function has a definition in class(es) `" + dupes.join("`, `") + "`");
+					} else {
+						msg.channel.send("No functions have been defined for class `" + className + "`");
+					}
 					return;
 				}
 				var classFuncs = functionDataProxy[className];
@@ -594,9 +644,17 @@ function handleGeneralCommand(msg) {
 				if(!(func in classFuncsProxy)) {
 					var possibles = getRelatedFunctions(func, className, 10);
 					if(possibles.length) {
-						msg.channel.send("No arguments have been defined for `" + func + "` in class `" + className + "`\n\nDid you mean any of these?\n`" + possibles.join(", ") + "`");
+						if(dupes.length) {
+							msg.channel.send("No arguments have been defined for `" + func + "` in class `" + className + "`\n\nDid you mean any of these?\n`" + possibles.join("`, `") + "`\n\nThis function has a definition in class(es) `" + dupes.join("`, `") + "`");
+						} else {
+							msg.channel.send("No arguments have been defined for `" + func + "` in class `" + className + "`\n\nDid you mean any of these?\n`" + possibles.join("`, `") + "`");
+						}
 					} else {
-						msg.channel.send("No arguments have been defined for `" + func + "` in class `" + className + "`");
+						if(dupes.length) {
+							msg.channel.send("No arguments have been defined for `" + func + "` in class `" + className + "`\n\nThis function has a definition in class(es) `" + dupes.join("`, `") + "`");
+						} else {
+							msg.channel.send("No arguments have been defined for `" + func + "` in class `" + className + "`");
+						}
 					}
 					return;
 				}
@@ -607,16 +665,32 @@ function handleGeneralCommand(msg) {
 			if(hasClass) {
 				var possibles = getRelatedFunctions(func, className, 10);
 				if(possibles.length) {
-					msg.channel.send("`" + className + "::" + func + "(" + parseArgList(["self"].concat(funcs)) + ");`\n\nSimilarly named functions: `" + possibles.join(", ") + "`");
+					if(dupes.length) {
+						msg.channel.send("`" + className + "::" + func + "(" + parseArgList(["self"].concat(funcs)) + ");`\n\nSimilarly named functions: `" + possibles.join("`, `") + "`\n\nThis function also has a definition in class(es) `" + dupes.join("`, `") + "`");
+					} else {
+						msg.channel.send("`" + className + "::" + func + "(" + parseArgList(["self"].concat(funcs)) + ");`\n\nSimilarly named functions: `" + possibles.join("`, `") + "`");
+					}
 				} else {
-					msg.channel.send("`" + className + "::" + func + "(" + parseArgList(["self"].concat(funcs)) + ");`");
+					if(dupes.length) {
+						msg.channel.send("`" + className + "::" + func + "(" + parseArgList(["self"].concat(funcs)) + ");`\n\nThis function also has a definition in class(es) `" + dupes.join("`, `") + "`");
+					} else {
+						msg.channel.send("`" + className + "::" + func + "(" + parseArgList(["self"].concat(funcs)) + ");`");
+					}
 				}
 			} else {
 				var possibles = getRelatedFunctions(func, 10);
 				if(possibles.length) {
-					msg.channel.send("`" + func + "(" + parseArgList(funcs) + ");`\n\Similarly named functions: `" + possibles.join(", ") + "`");
+					if(dupes.length) {
+						msg.channel.send("`" + func + "(" + parseArgList(funcs) + ");`\n\Similarly named functions: `" + possibles.join("`, `") + "`\n\nThis function has a definition in class(es) `" + dupes.join("`, `") + "`");
+					} else {
+						msg.channel.send("`" + func + "(" + parseArgList(funcs) + ");`\n\Similarly named functions: `" + possibles.join("`, `") + "`");
+					}
 				} else {
-					msg.channel.send("`" + func + "(" + parseArgList(funcs) + ");`");
+					if(dupes.length) {
+						msg.channel.send("`" + func + "(" + parseArgList(funcs) + ");`\n\nThis function has a definition in class(es) `" + dupes.join("`, `") + "`");
+					} else {
+						msg.channel.send("`" + func + "(" + parseArgList(funcs) + ");`");
+					}
 				}
 			}
 			break;
