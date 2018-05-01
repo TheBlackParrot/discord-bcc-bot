@@ -18,6 +18,10 @@ client.on("ready", function() {
 
 var months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 function formatDate(date) {
+	if(typeof date !== "object" || typeof date === "undefined") { return "never"; }
+	if(isNaN(date.getMonth())) {
+		return "never";
+	}
 	var hours = date.getHours();
 	var minutes = date.getMinutes();
 	var ampm = (hours >= 12 ? 'PM' : 'AM');
