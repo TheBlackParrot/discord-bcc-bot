@@ -707,13 +707,13 @@ function handleGeneralCommand(msg) {
 				var member = guild.members.get(msg.author.id);
 
 				if(!member.hasPermission("MANAGE_GUILD")) {
-					if(!member.roles.has("440698071530340352")) {
+					if(!member.roles.has("440420951394615307")) {
 						return;
 					}
 				}
 			} else {
 				if(!msg.member.hasPermission("MANAGE_GUILD")) {
-					if(!msg.member.roles.has("440698071530340352")) {
+					if(!msg.member.roles.has("440420951394615307")) {
 						return;
 					}
 				}
@@ -755,6 +755,62 @@ function handleGeneralCommand(msg) {
 			fs.writeFileSync("./functions.json", JSON.stringify(functionData), "utf-8");
 			break;
 
+		case "parseraw":
+			if(parts.length <= 1) {
+				return;
+			}
+
+			if(msg.channel.type == "dm" || msg.channel.type == "group") {
+				var guild = client.guilds.get("226534113329283072");
+				var member = guild.members.get(msg.author.id);
+
+				if(!member.hasPermission("MANAGE_GUILD")) {
+					if(!member.roles.has("440420951394615307")) {
+						return;
+					}
+				}
+			} else {
+				if(!msg.member.hasPermission("MANAGE_GUILD")) {
+					if(!msg.member.roles.has("440420951394615307")) {
+						return;
+					}
+				}
+			}
+
+			var line = msg.cleanContent.split(" ").slice(1).join(" ");
+			var hasClass = (line.indexOf("::") != -1);
+			var parts = line.split("(");
+			var currentlyOptional = false;
+
+			var args = parts[1].split(",").map(function(arg) {
+				if(arg.indexOf("[") != -1) {
+					currentlyOptional = true;
+				}
+				
+				arg = (currentlyOptional ? "o:" : "") + arg.replace(/\%/g, '').replace(/\(|\)/g, '').replace(/\[|\]/g, '').trim();
+
+				if(arg.indexOf("]") != -1) {
+					currentlyOptional = false;
+				}
+
+				return arg;
+			}).slice(hasClass ? 1 : 0);
+
+			msg.channel.send("editargs " + (parts[0] + " " + args.join(" ")).trim()).then(function(newmsg) {
+				try {
+					newmsg.delete(15000);
+				} catch(err) {
+					return;
+				}
+			});
+
+			try {
+				msg.delete();
+			} catch(err) {
+				return;
+			}
+			break;
+
 		case "removefunc":
 		case "removefunction":
 		case "removeargs":
@@ -770,13 +826,13 @@ function handleGeneralCommand(msg) {
 				var member = guild.members.get(msg.author.id);
 
 				if(!member.hasPermission("MANAGE_GUILD")) {
-					if(!member.roles.has("440698071530340352")) {
+					if(!member.roles.has("440420951394615307")) {
 						return;
 					}
 				}
 			} else {
 				if(!msg.member.hasPermission("MANAGE_GUILD")) {
-					if(!msg.member.roles.has("440698071530340352")) {
+					if(!msg.member.roles.has("440420951394615307")) {
 						return;
 					}
 				}
