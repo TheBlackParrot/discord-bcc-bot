@@ -8,6 +8,7 @@ const settings = require("./settings.json");
 var servers = require("./servers.json");
 var cacheData = require("./cache.json");
 var functionData = require("./functions.json");
+var muteData = require("./mutes.json");
 
 var serverChannel;
 client.on("ready", function() {
@@ -31,6 +32,7 @@ function formatDate(date) {
 var serverData = {};
 var awaitingUpdates = 0;
 function serverUpdate() {
+	/*
 	if(!Object.keys(serverData).length) {
 		grabMasterServerData(serverUpdate);
 		return;
@@ -50,9 +52,11 @@ function serverUpdate() {
 	for(var idx in servers) {
 		triggerUpdate(idx);
 	}
+	*/
 }
 
 function triggerUpdate(idx) {
+	/*
 	var datetime = new Date();
 	var server = servers[idx];
 	var addr = server.ip + ":" + server.port;
@@ -107,18 +111,22 @@ function triggerUpdate(idx) {
 			updateFinished();
 		});
 	});
+	*/
 }
 
 function updateFinished() {
+	/*
 	awaitingUpdates--;
 	
 	if(!awaitingUpdates) {
 		fs.writeFileSync("./servers.json", JSON.stringify(servers), "utf-8");
 		//console.log("updated at " + Date.now());
 	}
+	*/
 }
 
 function grabMasterServerData(callback) {
+	/*
 	request('http://master2.blockland.us', function(err, response, body) {
 		if(err) {
 			console.log(err);
@@ -167,6 +175,7 @@ function grabMasterServerData(callback) {
 			callback();
 		}
 	});
+	*/
 }
 
 function handleRoleChannel(msg, prefix) {
@@ -193,10 +202,15 @@ function handleRoleChannel(msg, prefix) {
 			var roles = msg.guild.roles;
 
 			member.addRole(roles.find("name", role));
+
 			msg.reply("You now have the `" + role + "` role.").then(function(reply) {
 				msg.delete(10000);
 				reply.delete(10000);
 			});
+
+			if(role.indexOf("Mentionable") != -1) {
+				member.addRole(roles.find("name", "Mentionable"));
+			}
 
 			break;
 
@@ -225,6 +239,21 @@ function handleRoleChannel(msg, prefix) {
 				reply.delete(10000);
 			});
 
+			if(role.indexOf("Mentionable") != -1) {
+				var removeMentionable = true;
+				member.roles.map(function(_) {
+					if(role == _.name) {
+						return;
+					}
+					if(_.name.indexOf("Mentionable") != -1 && _.name != "Mentionable") {
+						removeMentionable = false;
+					}
+				});
+				if(removeMentionable) {
+					member.removeRole(roles.find("name", "Mentionable"));
+				}
+			}
+
 			break;
 
 		case "!":
@@ -242,6 +271,7 @@ function handleRoleChannel(msg, prefix) {
 }
 
 function handleServersChannel(msg, prefix) {
+	/*
 	if(!msg.member.hasPermission("MANAGE_GUILD")) {
 		if(msg.channel.equals(serverChannel)) {
 			msg.delete();
@@ -379,7 +409,7 @@ function handleServersChannel(msg, prefix) {
 			break;
 
 		default:
-			/* specific case here */
+			// specific case here
 			if(msg.channel.equals(serverChannel)) {
 				if(!(["+", "-", "!"].includes(prefix)) && msg.author.id != client.user.id) {
 					msg.delete();
@@ -387,6 +417,7 @@ function handleServersChannel(msg, prefix) {
 			}
 			break;
 	}	
+	*/
 }
 
 function parseArgList(args) {
@@ -883,8 +914,124 @@ function handleGeneralCommand(msg) {
 
 			fs.writeFileSync("./functions.json", JSON.stringify(functionData), "utf-8");
 			break;
+
+		case "mute":
+		case "silence":
+		case "shh":
+			if(parts.length < 2) {
+				return;
+			}
+
+			if(msg.channel.type == "dm" || msg.channel.type == "group") {
+				return;
+			} else {
+				if(!msg.member.hasPermission("MANAGE_GUILD")) {
+					if(!(msg.member.roles.has("440420951394615307") || msg.member.roles.has("464248977798332418"))) {
+						return;
+					}
+				}
+			}
+
+			var victim = msg.mentions.members.first();
+			if(!victim) {
+				return;
+			}
+
+			var minutes = parseInt(parts[2].trim());
+			if(!minutes) {
+				return;
+			}
+
+			if(victim.roles.has("478326753790787596")) {
+				msg.reply("User is already muted.");
+				return;
+			}
+
+			var roles = msg.guild.roles;
+			victim.addRole("478326753790787596");
+
+			muteData.push({
+				"member": victim.id,
+				"timestampEnd": Date.now() + (minutes*60*1000)
+			});
+			fs.writeFileSync("./mutes.json", JSON.stringify(muteData), "utf-8");
+
+			victim.send("You have been muted in Blockland Content Creators by a moderator for " + minutes.toLocaleString() + " minute(s).");
+			break;
+
+		case "unsilence":
+		case "unshh":
+		case "unmute":
+			if(parts.length < 1) {
+				return;
+			}
+
+			if(msg.channel.type == "dm" || msg.channel.type == "group") {
+				return;
+			} else {
+				if(!msg.member.hasPermission("MANAGE_GUILD")) {
+					if(!(msg.member.roles.has("440420951394615307") || msg.member.roles.has("464248977798332418"))) {
+						return;
+					}
+				}
+			}
+
+			var victim = msg.mentions.members.first();
+			if(!victim) {
+				return;
+			}
+
+			if(!victim.roles.has("478326753790787596")) {
+				msg.reply("User is not muted.");
+				return;
+			}
+
+			var roles = msg.guild.roles;
+			victim.removeRole("478326753790787596");
+
+			for(var idx in muteData) {
+				var muteRow = muteData[idx];
+				if(muteRow.member == victim.id) {
+					muteData.splice(idx);
+					break;
+				}
+			}
+			fs.writeFileSync("./mutes.json", JSON.stringify(muteData), "utf-8");
+
+			victim.send("Your mute in Blockland Content Creators has ended.");
+			break;
 	}
 }
+
+function muteTick() {
+	if(!muteData.length) {
+		return;
+	}
+
+	let guild = client.guilds.get("226534113329283072");
+	let now = Date.now();
+
+	for(let idx in muteData) {
+		let data = muteData[idx];
+
+		if(now >= parseInt(data.timestampEnd)) {
+			let victim = guild.members.get(data.member);
+
+			if(victim) {
+				if(victim.roles.has("478326753790787596")) {
+					victim.removeRole("478326753790787596");
+					victim.send("Your mute in Blockland Content Creators has ended.");
+				}
+			}
+
+			console.log("ended mute for member ID " + data.member);
+
+			muteData.splice(idx, 1);
+			fs.writeFileSync("./mutes.json", JSON.stringify(muteData), "utf-8");
+		}
+	}
+}
+var muteTickInterval = setInterval(muteTick, 5000);
 
 client.on("message", function(msg) {
 	if(msg.author.id == client.user.id) {
@@ -904,11 +1051,12 @@ client.on("message", function(msg) {
 			handleRoleChannel(msg, prefix);
 			break;
 
-		case "servers":
-			handleServersChannel(msg, prefix);
-			break;
+		//case "servers":
+		//	handleServersChannel(msg, prefix);
+		//	break;
 
 		case "general-commands":
+		case "test":
 			handleGeneralCommand(msg);
 			break;
 	}
