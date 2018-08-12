@@ -952,11 +952,15 @@ function handleGeneralCommand(msg) {
 
 			muteData.push({
 				"member": victim.id,
-				"timestampEnd": Date.now() + (minutes*60*1000)
+				"timestampEnd": minutes == -1 ? -1 : Date.now() + (minutes*60*1000)
 			});
 			fs.writeFileSync("./mutes.json", JSON.stringify(muteData), "utf-8");
 
-			victim.send("You have been muted in Blockland Content Creators by a moderator for " + minutes.toLocaleString() + " minute(s).");
+			if(minutes != -1) {
+				victim.send("You have been muted in Blockland Content Creators by a moderator for " + minutes.toLocaleString() + " minute(s).");
+			} else {
+				victim.send("You have been permanently muted in Blockland Content Creators by a moderator.");
+			}
 			break;
 
 		case "unsilence":
@@ -1014,20 +1018,22 @@ function muteTick() {
 	for(let idx in muteData) {
 		let data = muteData[idx];
 
-		if(now >= parseInt(data.timestampEnd)) {
-			let victim = guild.members.get(data.member);
+		if(data.timestampEnd != -1) {
+			if(now >= parseInt(data.timestampEnd)) {
+				let victim = guild.members.get(data.member);
 
-			if(victim) {
-				if(victim.roles.has("478326753790787596")) {
-					victim.removeRole("478326753790787596");
-					victim.send("Your mute in Blockland Content Creators has ended.");
+				if(victim) {
+					if(victim.roles.has("478326753790787596")) {
+						victim.removeRole("478326753790787596");
+						victim.send("Your mute in Blockland Content Creators has ended.");
+					}
 				}
+
+				console.log("ended mute for member ID " + data.member);
+
+				muteData.splice(idx, 1);
+				fs.writeFileSync("./mutes.json", JSON.stringify(muteData), "utf-8");
 			}
-
-			console.log("ended mute for member ID " + data.member);
-
-			muteData.splice(idx, 1);
-			fs.writeFileSync("./mutes.json", JSON.stringify(muteData), "utf-8");
 		}
 	}
 }

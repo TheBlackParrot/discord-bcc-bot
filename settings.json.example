@@ -10,11 +10,26 @@
 		"DLL/Game Injection",
 		"PC",
 		"Mac",
-		"Linux"
+		"Linux",
+		"Mentionable Programmer",
+		"Mentionable Modeler",
+		"Mentionable Eventer",
+		"Mentionable Builder",
+		"Mentionable Audio"
 	],
 
 	"allowed_channels": [
 		"bcc-bot-development",
 		"role-request"
-	]
+	],
+
+	"heavily_moderate": [
+		"commissions",
+		"free-resources",
+		"advertising",
+		"voice-text",
+		"radio-bot"
+	],
+
+	"server_channel": "53456456456"
 }
