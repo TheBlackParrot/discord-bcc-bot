@@ -14,7 +14,6 @@ var serverChannel;
 client.on("ready", function() {
 	console.log("ready, logged in as " + client.user.tag);
 	serverChannel = client.channels.get(settings.server_channel);
-	serverUpdate();
 });
 
 var months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
@@ -27,155 +26,6 @@ function formatDate(date) {
 	var minutes = date.getMinutes();
 	var ampm = (hours >= 12 ? 'PM' : 'AM');
 	return months[date.getMonth()] + " " + date.getDate() + " " + date.getFullYear() + ", " + ((hours % 12) ? hours % 12 : 12) + ":" + minutes.toString().padStart(2, "0") + " " + ampm + " CDT";
-}
-
-var serverData = {};
-var awaitingUpdates = 0;
-function serverUpdate() {
-	/*
-	if(!Object.keys(serverData).length) {
-		grabMasterServerData(serverUpdate);
-		return;
-	}
-
-	setTimeout(function() {
-		grabMasterServerData(serverUpdate);
-	}, 30000);
-
-	if(!servers.length) {
-		return;
-	}
-
-	var datetime = new Date();
-
-	awaitingUpdates = servers.length;
-	for(var idx in servers) {
-		triggerUpdate(idx);
-	}
-	*/
-}
-
-function triggerUpdate(idx) {
-	/*
-	var datetime = new Date();
-	var server = servers[idx];
-	var addr = server.ip + ":" + server.port;
-
-	//console.log(server);
-
-	if(addr in serverData) {
-		var sd = cacheData[addr];
-		var out = [
-			'-----------------------------------------------',
-			':' + ("icon" in server ? server.icon : "desktop") + ':  **' + sd.title + '** hosting *' + sd.gamemode + '* for ' + sd.players + ' players',
-			(sd.private ? ":lock: Private" : ":unlock: Public") + "        " + (sd.dedicated ? ":white_check_mark:" : ":black_large_square:") + " Dedicated",
-			'-----------------------------------------------'
-		];
-
-		servers[idx].seen = sd.timestamp;
-	} else {
-		if(addr in cacheData) {
-			var sd = cacheData[addr];
-			var out = [
-				'-----------------------------------------------',
-				':' + ("icon" in server ? server.icon : "desktop") + ':  **' + sd.title + '** is currently offline',
-				':warning: Last seen ' + formatDate(new Date(server.seen)),
-				'-----------------------------------------------'
-			];
-		} else {
-			var out = [
-				'-----------------------------------------------',
-				':warning: Unknown server, no data has been cached.',
-				':warning: Last seen ' + formatDate(new Date(server.seen)),
-				'-----------------------------------------------',
-			];
-		}
-	}
-
-	if("host" in server) {
-		out.push('Host: `' + server.host + '`');
-	}
-	out = out.concat([
-		'Address: `' + server.ip + ":" + server.port + '`',
-		'Last updated ' + formatDate(datetime)
-	]);
-
-	// i hate then/catch it looks so messy fml
-	var to_send = out.join("\n");
-	serverChannel.fetchMessage(server.message).then(function(message) {
-		message.edit(out.join("\n"));
-		updateFinished();
-	}).catch(function() {
-		serverChannel.send(out.join("\n")).then(function(_) {
-			servers[idx].message = _.id
-			updateFinished();
-		});
-	});
-	*/
-}
-
-function updateFinished() {
-	/*
-	awaitingUpdates--;
-	
-	if(!awaitingUpdates) {
-		fs.writeFileSync("./servers.json", JSON.stringify(servers), "utf-8");
-		//console.log("updated at " + Date.now());
-	}
-	*/
-}
-
-function grabMasterServerData(callback) {
-	/*
-	request('http://master2.blockland.us', function(err, response, body) {
-		if(err) {
-			console.log(err);
-			return;
-		}
-
-		//console.log(response.statusCode);
-		if(response.statusCode != 200) {
-			console.log("master server didn't return 200, assuming it's down " + Date.now());
-			return;
-		}
-
-		for(var k in serverData) {
-			delete serverData[k];
-		}
-
-		var lines = body.split("\n");
-		for(var idx in lines) {
-			var line = lines[idx];
-			var fields = line.split("\t");
-
-			if(fields[0] == "FIELDS" || fields[0] == "START" || fields[0] == "END") {
-				continue;
-			}
-
-			var item = {
-				ip: fields[0],
-				port: parseInt(fields[1], 10),
-				private: parseInt(fields[2], 10),
-				dedicated: parseInt(fields[3], 10),
-				title: fields[4],
-				players: parseInt(fields[5], 10),
-				maxplayers: parseInt(fields[6], 10),
-				gamemode: fields[7],
-				bricks: parseInt(fields[8], 10),
-				timestamp: Date.now()
-			};
-
-			serverData[fields[0] + ":" + fields[1]] = item;
-			cacheData[fields[0] + ":" + fields[1]] = item;
-		}
-
-		fs.writeFileSync("./cache.json", JSON.stringify(cacheData), "utf-8");
-
-		if(typeof callback === "function") {
-			callback();
-		}
-	});
-	*/
 }
 
 function handleRoleChannel(msg, prefix) {
@@ -192,8 +42,10 @@ function handleRoleChannel(msg, prefix) {
 			
 			if(!(settings.allowed_roles.includes(role))) {
 				msg.reply("`" + role + "` is not a toggleable role.").then(function(reply) {
-					msg.delete(10000);
-					reply.delete(10000);
+					setTimeout(function() {
+						msg.delete();
+						reply.delete();
+					}, 10000);
 				});
 				break;
 			}
@@ -201,15 +53,17 @@ function handleRoleChannel(msg, prefix) {
 			var member = msg.member;
 			var roles = msg.guild.roles;
 
-			member.addRole(roles.find("name", role));
+			member.roles.add(roles.find(roleObj => roleObj.name == role));
 
 			msg.reply("You now have the `" + role + "` role.").then(function(reply) {
-				msg.delete(10000);
-				reply.delete(10000);
+				setTimeout(function() {
+					msg.delete();
+					reply.delete();
+				}, 10000);
 			});
 
 			if(role.indexOf("Mentionable") != -1) {
-				member.addRole(roles.find("name", "Mentionable"));
+				member.roles.add(roles.find(roleObj => roleObj.name == "Mentionable"));
 			}
 
 			break;
@@ -224,8 +78,10 @@ function handleRoleChannel(msg, prefix) {
 			
 			if(!(settings.allowed_roles.includes(role))) {
 				msg.reply("`" + role + "` is not a toggleable role.").then(function(reply) {
-					msg.delete(10000);
-					reply.delete(10000);
+					setTimeout(function() {
+						msg.delete();
+						reply.delete();
+					}, 10000);
 				});
 				break;
 			}
@@ -233,10 +89,12 @@ function handleRoleChannel(msg, prefix) {
 			var member = msg.member;
 			var roles = msg.guild.roles;
 
-			member.removeRole(roles.find("name", role));
+			member.roles.remove(roles.find(roleObj => roleObj.name == role));
 			msg.reply("You no longer have the `" + role + "` role.").then(function(reply) {
-				msg.delete(10000);
-				reply.delete(10000);
+				setTimeout(function() {
+					msg.delete();
+					reply.delete();
+				}, 10000);
 			});
 
 			if(role.indexOf("Mentionable") != -1) {
@@ -250,7 +108,7 @@ function handleRoleChannel(msg, prefix) {
 					}
 				});
 				if(removeMentionable) {
-					member.removeRole(roles.find("name", "Mentionable"));
+					member.roles.remove(roles.find(roleObj => roleObj.name == "Mentionable"));
 				}
 			}
 
@@ -268,156 +126,6 @@ function handleRoleChannel(msg, prefix) {
 			}
 			break;
 	}
-}
-
-function handleServersChannel(msg, prefix) {
-	/*
-	if(!msg.member.hasPermission("MANAGE_GUILD")) {
-		if(msg.channel.equals(serverChannel)) {
-			msg.delete();
-		}
-
-		return;
-	}
-
-	var content = msg.cleanContent.substr(1);
-	var parts = content.split("|");
-	if(parts.length == 0) {
-		msg.author.send("No arguments were specified.");
-		return;
-	}
-
-	switch(prefix) {
-		case "+":
-			// +127.0.0.1:28000|TheBlackParrot#1352|pencil
-			var addrparts = parts[0].split(":");
-			if(addrparts.length < 2) {
-				msg.author.send("An IP address and port must be specified for the first argument. (e.g. `127.0.0.1:28000`)");
-				msg.delete();
-				return;
-			}
-
-			var host = "-";
-			if(parts.length >= 2) {
-				if(parts[1].indexOf("#") == -1 && parts[1] != "-") {
-					msg.author.send("No discriminator was provided for the host. (e.g. TheBlackParrot**#1352**)");
-					msg.delete();
-					return;
-				} else {
-					var host = parts[1];
-				}
-			}
-
-			var ip = addrparts[0];
-			var port = parseInt(addrparts[1]);
-
-			var exists = false;
-			for(var idx in servers) {
-				var server = servers[idx];
-
-				if(server.ip == ip && server.port == port) {
-					exists = true;
-					break;
-				}
-			}
-
-			var feedback = [];
-			if(exists) {
-				if(host != "-") {
-					servers[idx].host = host;
-				}
-
-				if(parts.length == 3) {
-					if(parts[2] != "-") {
-						servers[idx].icon = parts[2];
-					}
-				}
-
-				fs.writeFileSync("./servers.json", JSON.stringify(servers), "utf-8");
-
-				feedback.push('Successfully edited `' + (ip + ":" + port) + '`');
-				feedback.push('```json' + JSON.stringify(servers[idx], null, 2) + '```');
-			} else {
-				var item = {
-					ip: ip,
-					port: port,
-					message: ""
-				}
-
-				if(host != "-") {
-					item.host = host;
-				}
-
-				if(parts.length == 3) {
-					if(parts[2] != "-") {
-						item.icon = parts[2];
-					}
-				}
-
-				servers.push(item);
-				fs.writeFileSync("./servers.json", JSON.stringify(servers), "utf-8");
-
-				feedback.push('Successfully created `' + (ip + ":" + port) + '`');
-				feedback.push('```' + JSON.stringify(item, null, 2) + '```');
-			}
-
-			if(feedback.length) {
-				msg.author.send(feedback.join("\n"));
-			}
-
-			msg.delete();
-			break;
-
-		case "-":
-			//-127.0.0.1:28000
-			var addrparts = parts[0].split(":");
-			if(addrparts.length < 2) {
-				msg.author.send("An IP address and port must be specified for the first argument. (e.g. `127.0.0.1:28000`)");
-				return;
-			}
-
-			var ip = addrparts[0];
-			var port = parseInt(addrparts[1]);
-
-			var exists = false;
-			for(var idx in servers) {
-				var server = servers[idx];
-
-				if(server.ip == ip && server.port == port) {
-					exists = true;
-					serverChannel.fetchMessage(server.message).then(function(message) {
-						message.delete();
-					});
-					servers.splice(idx, 1);
-					break;
-				}
-			}
-
-			if(exists) {
-				fs.writeFileSync("./servers.json", JSON.stringify(servers), "utf-8");
-
-				var feedback = 'Successfully deleted `' + (ip + ":" + port) + '`';
-			} else {
-				var feedback = "There is no entry for `" + (ip + ":" + port) + "`";
-			}
-			msg.author.send(feedback);
-
-			msg.delete();
-			break;
-
-		case "!":
-			break;
-
-		default:
-			// specific case here
-			if(msg.channel.equals(serverChannel)) {
-				if(!(["+", "-", "!"].includes(prefix)) && msg.author.id != client.user.id) {
-					msg.delete();
-				}
-			}
-			break;
-	}	
-	*/
 }
 
 function parseArgList(args) {
@@ -742,13 +450,13 @@ function handleGeneralCommand(msg) {
 				var member = guild.members.get(msg.author.id);
 
 				if(!member.hasPermission("MANAGE_GUILD")) {
-					if(!member.roles.has("440420951394615307")) {
+					if(!member.roles.get("440420951394615307")) {
 						return;
 					}
 				}
 			} else {
 				if(!msg.member.hasPermission("MANAGE_GUILD")) {
-					if(!msg.member.roles.has("440420951394615307")) {
+					if(!msg.member.roles.get("440420951394615307")) {
 						return;
 					}
 				}
@@ -800,13 +508,13 @@ function handleGeneralCommand(msg) {
 				var member = guild.members.get(msg.author.id);
 
 				if(!member.hasPermission("MANAGE_GUILD")) {
-					if(!member.roles.has("440420951394615307")) {
+					if(!member.roles.get("440420951394615307")) {
 						return;
 					}
 				}
 			} else {
 				if(!msg.member.hasPermission("MANAGE_GUILD")) {
-					if(!msg.member.roles.has("440420951394615307")) {
+					if(!msg.member.roles.get("440420951394615307")) {
 						return;
 					}
 				}
@@ -861,13 +569,13 @@ function handleGeneralCommand(msg) {
 				var member = guild.members.get(msg.author.id);
 
 				if(!member.hasPermission("MANAGE_GUILD")) {
-					if(!member.roles.has("440420951394615307")) {
+					if(!member.roles.get("440420951394615307")) {
 						return;
 					}
 				}
 			} else {
 				if(!msg.member.hasPermission("MANAGE_GUILD")) {
-					if(!msg.member.roles.has("440420951394615307")) {
+					if(!msg.member.roles.get("440420951394615307")) {
 						return;
 					}
 				}
@@ -926,7 +634,7 @@ function handleGeneralCommand(msg) {
 				return;
 			} else {
 				if(!msg.member.hasPermission("MANAGE_GUILD")) {
-					if(!(msg.member.roles.has("440420951394615307") || msg.member.roles.has("464248977798332418"))) {
+					if(!(msg.member.roles.get("440420951394615307") || msg.member.roles.get("464248977798332418"))) {
 						return;
 					}
 				}
@@ -942,13 +650,17 @@ function handleGeneralCommand(msg) {
 				return;
 			}
 
-			if(victim.roles.has("478326753790787596")) {
+			var reason;
+			if(parts.length > 3) {
+				reason = parts.slice(3).join(" ");
+			}
+
+			if(victim.roles.get("478326753790787596")) {
 				msg.reply("User is already muted.");
 				return;
 			}
 
-			var roles = msg.guild.roles;
-			victim.addRole("478326753790787596");
+			victim.roles.add("478326753790787596");
 
 			muteData.push({
 				"member": victim.id,
@@ -956,11 +668,20 @@ function handleGeneralCommand(msg) {
 			});
 			fs.writeFileSync("./mutes.json", JSON.stringify(muteData), "utf-8");
 
+			var out = [];
 			if(minutes != -1) {
-				victim.send("You have been muted in Blockland Content Creators by a moderator for " + minutes.toLocaleString() + " minute(s).");
+				out.push("You have been muted in Blockland Content Creators by a moderator for " + minutes.toLocaleString() + " minute(s).");
 			} else {
-				victim.send("You have been permanently muted in Blockland Content Creators by a moderator.");
+				out.push("You have been permanently muted in Blockland Content Creators by a moderator.");
 			}
+
+			if(reason) {
+				out.push("```");
+				out.push(reason);
+				out.push("```");
+			}
+
+			victim.send(out.join("\n"));
 			break;
 
 		case "unsilence":
@@ -974,7 +695,7 @@ function handleGeneralCommand(msg) {
 				return;
 			} else {
 				if(!msg.member.hasPermission("MANAGE_GUILD")) {
-					if(!(msg.member.roles.has("440420951394615307") || msg.member.roles.has("464248977798332418"))) {
+					if(!(msg.member.roles.get("440420951394615307") || msg.member.roles.get("464248977798332418"))) {
 						return;
 					}
 				}
@@ -985,13 +706,12 @@ function handleGeneralCommand(msg) {
 				return;
 			}
 
-			if(!victim.roles.has("478326753790787596")) {
+			if(!victim.roles.get("478326753790787596")) {
 				msg.reply("User is not muted.");
 				return;
 			}
 
-			var roles = msg.guild.roles;
-			victim.removeRole("478326753790787596");
+			victim.roles.remove("478326753790787596");
 
 			for(var idx in muteData) {
 				var muteRow = muteData[idx];
@@ -1023,8 +743,8 @@ function muteTick() {
 				let victim = guild.members.get(data.member);
 
 				if(victim) {
-					if(victim.roles.has("478326753790787596")) {
-						victim.removeRole("478326753790787596");
+					if(victim.roles.get("478326753790787596")) {
+						victim.roles.remove("478326753790787596");
 						victim.send("Your mute in Blockland Content Creators has ended.");
 					}
 				}
@@ -1057,15 +777,26 @@ client.on("message", function(msg) {
 			handleRoleChannel(msg, prefix);
 			break;
 
-		//case "servers":
-		//	handleServersChannel(msg, prefix);
-		//	break;
-
+		case "staff":
 		case "general-commands":
 		case "test":
 			handleGeneralCommand(msg);
 			break;
 	}
+});
+
+client.on("guildMemberAdd", function(member) {
+	let now = Date.now();
+
+	for(let idx in muteData) {
+		let data = muteData[idx];
+
+		if(data.member == member.id) {
+			if(data.timestampEnd == -1 || now < parseInt(data.timestampEnd)) {
+				member.roles.add("478326753790787596");
+			}
+		}
+	}	
 });
 
 client.login(settings.token);
