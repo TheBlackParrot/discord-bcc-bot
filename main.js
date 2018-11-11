@@ -4,11 +4,17 @@ const request = require("request");
 const fs = require("fs");
 const strSim = require('string-similarity');
 
-const settings = require("./settings.json");
+var settings = require("./settings.json");
 var servers = require("./servers.json");
 var cacheData = require("./cache.json");
 var functionData = require("./functions.json");
 var muteData = require("./mutes.json");
+var tmpMsgData = require("./tmpMsgs.json");
+
+var t = settings.allowed_roles.map(function(role) {
+	return role.toLowerCase();
+});
+settings.allowed_roles = t;
 
 var serverChannel;
 client.on("ready", function() {
@@ -40,7 +46,7 @@ function handleRoleChannel(msg, prefix) {
 			
 			var role = content.substr(1);
 			
-			if(!(settings.allowed_roles.includes(role))) {
+			if(!(settings.allowed_roles.includes(role.toLowerCase()))) {
 				msg.reply("`" + role + "` is not a toggleable role.").then(function(reply) {
 					setTimeout(function() {
 						msg.delete();
@@ -53,7 +59,7 @@ function handleRoleChannel(msg, prefix) {
 			var member = msg.member;
 			var roles = msg.guild.roles;
 
-			member.roles.add(roles.find(roleObj => roleObj.name == role));
+			member.roles.add(roles.find(roleObj => roleObj.name.toLowerCase() == role.toLowerCase()));
 
 			msg.reply("You now have the `" + role + "` role.").then(function(reply) {
 				setTimeout(function() {
@@ -76,7 +82,7 @@ function handleRoleChannel(msg, prefix) {
 			
 			var role = content.substr(1);
 			
-			if(!(settings.allowed_roles.includes(role))) {
+			if(!(settings.allowed_roles.includes(role.toLowerCase()))) {
 				msg.reply("`" + role + "` is not a toggleable role.").then(function(reply) {
 					setTimeout(function() {
 						msg.delete();
@@ -89,7 +95,8 @@ function handleRoleChannel(msg, prefix) {
 			var member = msg.member;
 			var roles = msg.guild.roles;
 
-			member.roles.remove(roles.find(roleObj => roleObj.name == role));
+			member.roles.remove(roles.find(roleObj => roleObj.name.toLowerCase() == role.toLowerCase()));
+
 			msg.reply("You no longer have the `" + role + "` role.").then(function(reply) {
 				setTimeout(function() {
 					msg.delete();
@@ -642,7 +649,11 @@ function handleGeneralCommand(msg) {
 
 			var victim = msg.mentions.members.first();
 			if(!victim) {
-				return;
+				victim = msg.guild.members.get(parts[1]);
+				if(!victim) {
+					msg.reply("Could not find this member.");
+					return;
+				}
 			}
 
 			var minutes = parseInt(parts[2].trim());
@@ -703,7 +714,11 @@ function handleGeneralCommand(msg) {
 
 			var victim = msg.mentions.members.first();
 			if(!victim) {
-				return;
+				victim = msg.guild.members.get(parts[1]);
+				if(!victim) {
+					msg.reply("Could not find this member.");
+					return;
+				}
 			}
 
 			if(!victim.roles.get("478326753790787596")) {
@@ -724,6 +739,21 @@ function handleGeneralCommand(msg) {
 
 			victim.send("Your mute in Blockland Content Creators has ended.");
 			break;
+	}
+}
+
+function handleTempChannel(msg) {
+	let member = msg.member;
+
+	if(!member.voice.sessionID) {
+		msg.delete();
+	} else {
+		tmpMsgData.push({
+			"msgid": msg.id,
+			"channelid": msg.channel.id,
+			"timestampEnd": Date.now() + (720*60*1000)
+		});
+		fs.writeFileSync("./tmpMsgs.json", JSON.stringify(tmpMsgData), "utf-8");
 	}
 }
 
@@ -759,6 +789,32 @@ function muteTick() {
 }
 var muteTickInterval = setInterval(muteTick, 5000);
 
+function tmpMsgTick() {
+	if(!tmpMsgData.length) {
+		return;
+	}
+
+	let guild = client.guilds.get("226534113329283072");
+	let now = Date.now();
+
+	for(let idx in tmpMsgData) {
+		let data = tmpMsgData[idx];
+
+		let channel = guild.channels.get(data.channelid)
+
+		if(now >= parseInt(data.timestampEnd)) {
+			let msg = channel.messages.get(data.msgid);
+			if(msg) {
+				msg.delete();
+			}
+
+			tmpMsgData.splice(idx, 1);
+			fs.writeFileSync("./tmpMsgs.json", JSON.stringify(tmpMsgData), "utf-8");
+		}
+	}
+}
+var tmpMsgTickInterval = setInterval(tmpMsgTick, 60000);
+
 client.on("message", function(msg) {
 	if(msg.author.id == client.user.id) {
 		return;
@@ -781,6 +837,11 @@ client.on("message", function(msg) {
 		case "general-commands":
 		case "test":
 			handleGeneralCommand(msg);
+			break;
+
+		case "voice-text":
+		case "radio-bot":
+			handleTempChannel(msg);
 			break;
 	}
 });
