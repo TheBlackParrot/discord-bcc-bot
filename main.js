@@ -546,9 +546,9 @@ function handleGeneralCommand(msg) {
 				return arg;
 			}).slice(hasClass ? 1 : 0);
 
-			msg.channel.send("editargs " + (parts[0] + " " + args.join(" ")).trim()).then(function(newmsg) {
+			msg.reply("editargs " + (parts[0] + " " + args.join(" ")).trim().replace(/\;/gi, "")).then(function(newmsg) {
 				try {
-					newmsg.delete(15000);
+					newmsg.delete({timeout: 15000});
 				} catch(err) {
 					return;
 				}
@@ -738,6 +738,38 @@ function handleGeneralCommand(msg) {
 			fs.writeFileSync("./mutes.json", JSON.stringify(muteData), "utf-8");
 
 			victim.send("Your mute in Blockland Content Creators has ended.");
+			break;
+
+		case "funcsjson":
+			if(parts.length < 1) {
+				return;
+			}
+
+			if(msg.channel.type == "dm" || msg.channel.type == "group") {
+				var guild = client.guilds.get("226534113329283072");
+				var member = guild.members.get(msg.author.id);
+
+				if(!member.hasPermission("MANAGE_GUILD")) {
+					if(!member.roles.get("440420951394615307")) {
+						return;
+					}
+				}
+			} else {
+				if(!msg.member.hasPermission("MANAGE_GUILD")) {
+					if(!msg.member.roles.get("440420951394615307")) {
+						return;
+					}
+				}
+			}
+
+			msg.reply({
+				files: [
+					{
+						attachment: './functions.json',
+						name: `functionData${Date.now()}.json`
+					}
+				]
+			});
 			break;
 	}
 }
